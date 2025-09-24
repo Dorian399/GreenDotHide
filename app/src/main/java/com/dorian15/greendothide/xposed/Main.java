@@ -1,4 +1,4 @@
-package com.dorian15.greendothide.com.dorian15.greendothide.xposed;
+package com.dorian15.greendothide.xposed;
 
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
