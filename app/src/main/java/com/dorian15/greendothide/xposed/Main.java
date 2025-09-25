@@ -31,13 +31,13 @@ public class Main implements IXposedHookLoadPackage {
                     android.os.Bundle.class,
                     new XC_MethodHook() {
                         @Override
-                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                        protected void beforeHookedMethod(MethodHookParam param) {
                             param.setResult(null);
                         }
                     }
             );
             XposedBridge.log("[GreenDotHide] Hooked into: "+className+"."+methodName);
-        }catch(Exception e){
+        }catch(Throwable e){
             XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
         }
 
@@ -51,13 +51,13 @@ public class Main implements IXposedHookLoadPackage {
                     methodName,
                     new XC_MethodHook() {
                         @Override
-                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                        protected void beforeHookedMethod(MethodHookParam param) {
                             param.setResult(false);
                         }
                     }
             );
             XposedBridge.log("[GreenDotHide] Hooked into: "+className+"."+methodName);
-        }catch(Exception e){
+        }catch(Throwable e){
             XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
         }
 
@@ -69,13 +69,13 @@ public class Main implements IXposedHookLoadPackage {
                     methodName,
                     new XC_MethodHook() {
                         @Override
-                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                        protected void beforeHookedMethod(MethodHookParam param) {
                             param.setResult(false);
                         }
                     }
             );
             XposedBridge.log("[GreenDotHide] Hooked into: "+className+"."+methodName);
-        }catch(Exception e){
+        }catch(Throwable e){
             XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
         }
 
@@ -87,13 +87,13 @@ public class Main implements IXposedHookLoadPackage {
                     methodName,
                     new XC_MethodHook() {
                         @Override
-                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                        protected void beforeHookedMethod(MethodHookParam param) {
                             param.setResult(false);
                         }
                     }
             );
             XposedBridge.log("[GreenDotHide] Hooked into: "+className+"."+methodName);
-        }catch(Exception e){
+        }catch(Throwable e){
             XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
         }
 
@@ -113,7 +113,7 @@ public class Main implements IXposedHookLoadPackage {
                     boolean.class,
                     new XC_MethodHook() {
                         @Override
-                        protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
+                        protected void beforeHookedMethod(MethodHookParam param) {
                             String namespace = (String)param.args[0];
                             String name = (String)param.args[1];
                             if(Objects.equals(namespace, "privacy") && indicatorsSet.contains(name)){
@@ -123,7 +123,7 @@ public class Main implements IXposedHookLoadPackage {
                     }
             );
             XposedBridge.log("[GreenDotHide] Hooked into: "+className+"."+methodName);
-        }catch(Exception e){
+        }catch(Throwable e){
             XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
         }
     }
