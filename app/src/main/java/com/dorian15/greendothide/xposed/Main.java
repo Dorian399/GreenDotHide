@@ -1,18 +1,24 @@
 package com.dorian15.greendothide.xposed;
 
+import android.content.Context;
+import android.util.AttributeSet;
+import android.view.View;
+import android.widget.LinearLayout;
+
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 
+import de.robv.android.xposed.IXposedHookInitPackageResources;
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
+import de.robv.android.xposed.callbacks.XC_InitPackageResources;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
-public class Main implements IXposedHookLoadPackage {
+public class Main implements IXposedHookLoadPackage, IXposedHookInitPackageResources {
     @Override
     public void handleLoadPackage(final LoadPackageParam lpparam) throws Throwable {
         if (!lpparam.packageName.equals("com.android.systemui"))
@@ -97,6 +103,32 @@ public class Main implements IXposedHookLoadPackage {
             XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
         }
 
+        className = "com.android.systemui.privacy";
+        methodName = "OngoingPrivacyChip";
+        try{
+            XposedHelpers.findAndHookMethod(
+                    className,
+                    lpparam.classLoader,
+                    methodName,
+                    Context.class,
+                    AttributeSet.class,
+                    int.class,
+                    int.class,
+                    new XC_MethodHook() {
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam param) {
+                            LinearLayout iconsContainer = (LinearLayout) XposedHelpers.getObjectField(param.thisObject, "iconsContainer");
+                            if (iconsContainer != null) {
+                                iconsContainer.setVisibility(View.GONE);
+                            }
+                        }
+                    }
+            );
+            XposedBridge.log("[GreenDotHide] Hooked into: "+className+"."+methodName);
+        }catch(Throwable e){
+            XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
+        }
+
         className = "android.provider.DeviceConfig";
         methodName = "getBoolean";
         try{
@@ -126,5 +158,19 @@ public class Main implements IXposedHookLoadPackage {
         }catch(Throwable e){
             XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
         }
+    }
+
+    @Override
+    public void handleInitPackageResources(XC_InitPackageResources.InitPackageResourcesParam resparam) throws Throwable {
+        if (!resparam.packageName.equals("com.android.systemui"))
+            return;
+
+        try{
+            resparam.res.setReplacement("com.android.systemui", "bool", "config_enablePrivacyDot", false);
+            XposedBridge.log("[GreenDotHide] Hooked resource: config_enablePrivacyDot");
+        }catch(RuntimeException e){
+            XposedBridge.log("[GreenDotHide] Failed to hook resource: config_enablePrivacyDot");
+        }
+
     }
 }
