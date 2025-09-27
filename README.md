@@ -1,4 +1,4 @@
-Hides the green dot indicating sensitive permission use. Works only on MIUI/HyperOS.
+Hides the green dot indicating sensitive permission use. Works only on MIUI/HyperOS and some AOSP based ROMs.
 # How to use:
 1. Install apk.
 2. Open Xposed/LSPosed Manager.
