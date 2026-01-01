@@ -1,23 +1,10 @@
 package com.dorian15.greendothide.xposed;
 
-import android.animation.Animator;
-import android.animation.AnimatorSet;
-import android.animation.TimeInterpolator;
-import android.content.Context;
 import android.graphics.Rect;
-import android.util.AttributeSet;
-import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
-import android.widget.LinearLayout;
-
-import org.w3c.dom.Attr;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
+
 
 import de.robv.android.xposed.IXposedHookInitPackageResources;
 import de.robv.android.xposed.IXposedHookLoadPackage;
