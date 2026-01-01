@@ -1,10 +1,19 @@
 package com.dorian15.greendothide.xposed;
 
+import android.animation.Animator;
+import android.animation.AnimatorSet;
+import android.animation.TimeInterpolator;
 import android.content.Context;
+import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 
+import org.w3c.dom.Attr;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -103,54 +112,17 @@ public class Main implements IXposedHookLoadPackage, IXposedHookInitPackageResou
             XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
         }
 
-        className = "com.android.systemui.privacy";
-        methodName = "OngoingPrivacyChip";
+        className = "com.android.systemui.privacy.PrivacyItemController";
+        methodName = "updatePrivacyList";
         try{
             XposedHelpers.findAndHookMethod(
                     className,
                     lpparam.classLoader,
                     methodName,
-                    Context.class,
-                    AttributeSet.class,
-                    int.class,
-                    int.class,
-                    new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            LinearLayout iconsContainer = (LinearLayout) XposedHelpers.getObjectField(param.thisObject, "iconsContainer");
-                            if (iconsContainer != null) {
-                                iconsContainer.setVisibility(View.GONE);
-                            }
-                        }
-                    }
-            );
-            XposedBridge.log("[GreenDotHide] Hooked into: "+className+"."+methodName);
-        }catch(Throwable e){
-            XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
-        }
-
-        className = "android.provider.DeviceConfig";
-        methodName = "getBoolean";
-        try{
-
-            List<String> indicatorsList = Arrays.asList("camera_mic_icons_enabled", "location_indicators_enabled", "media_projection_indicators_enabled");
-            HashSet<String> indicatorsSet = new HashSet<String>(indicatorsList);
-
-            XposedHelpers.findAndHookMethod(
-                    className,
-                    lpparam.classLoader,
-                    methodName,
-                    String.class,
-                    String.class,
-                    boolean.class,
                     new XC_MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) {
-                            String namespace = (String)param.args[0];
-                            String name = (String)param.args[1];
-                            if(Objects.equals(namespace, "privacy") && indicatorsSet.contains(name)){
-                                param.setResult(false);
-                            }
+                            param.setResult(false);
                         }
                     }
             );
@@ -158,6 +130,96 @@ public class Main implements IXposedHookLoadPackage, IXposedHookInitPackageResou
         }catch(Throwable e){
             XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
         }
+
+        className = "com.android.systemui.statusbar.events.SystemEventChipAnimationControllerImpl";
+        methodName = "onSystemEventAnimationBegin";
+
+        try{
+            XposedHelpers.findAndHookMethod(
+                    className,
+                    lpparam.classLoader,
+                    methodName,
+                    new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) {
+                            Rect chipBounds = new Rect(0,0,0,0);
+                            XposedHelpers.setObjectField(param.thisObject,"chipBounds",chipBounds);
+                            XposedHelpers.setObjectField(param.thisObject,"chipMinWidth",0);
+                        }
+                    }
+            );
+            XposedBridge.log("[GreenDotHide] Hooked into: "+className+"."+methodName);
+        }catch(Throwable e){
+            XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
+        }
+
+        try{
+            XposedHelpers.findAndHookConstructor(
+                    className,
+                    lpparam.classLoader,
+                    new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) {
+                            Rect chipBounds = new Rect(0,0,0,0);
+                            XposedHelpers.setObjectField(param.thisObject,"chipBounds",chipBounds);
+                            XposedHelpers.setObjectField(param.thisObject,"chipMinWidth",0);
+                        }
+                    }
+            );
+            XposedBridge.log("[GreenDotHide] Hooked into: "+className+"."+methodName);
+        }catch(Throwable e){
+            XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
+        }
+
+        className = "com.android.systemui.privacy.OngoingPrivacyChip";
+        methodName = "setPrivacyList";
+
+        try{
+            XposedHelpers.findAndHookMethod(
+                    className,
+                    lpparam.classLoader,
+                    methodName,
+                    List.class,
+                    new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) {
+                            FrameLayout thisObj = (FrameLayout)param.thisObject;
+                            FrameLayout parent = (FrameLayout) thisObj.getParent();
+                            if(parent != null){
+                                ViewGroup grandParent = (ViewGroup) parent.getParent();
+                                if(grandParent != null){
+                                    grandParent.removeView(parent);
+                                }
+                            }
+                            param.setResult(false);
+                        }
+                    }
+            );
+            XposedBridge.log("[GreenDotHide] Hooked into: "+className+"."+methodName);
+        }catch(Throwable e){
+            XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
+        }
+
+        className = "com.android.systemui.statusbar.phone.fragment.CollapsedStatusBarFragment";
+        methodName = "onSystemEventAnimationBegin";
+
+        try{
+            XposedHelpers.findAndHookMethod(
+                    className,
+                    lpparam.classLoader,
+                    methodName,
+                    new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) {
+                            param.setResult(null);
+                        }
+                    }
+            );
+            XposedBridge.log("[GreenDotHide] Hooked into: "+className+"."+methodName);
+        }catch(Throwable e){
+            XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
+        }
+
     }
 
     @Override
