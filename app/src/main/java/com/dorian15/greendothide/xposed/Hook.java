@@ -14,7 +14,7 @@ import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_InitPackageResources;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
-public class Main implements IXposedHookLoadPackage, IXposedHookInitPackageResources {
+public class Hook implements IXposedHookLoadPackage, IXposedHookInitPackageResources {
     @Override
     public void handleLoadPackage(final LoadPackageParam lpparam) throws Throwable {
         if (!lpparam.packageName.equals("com.android.systemui"))
