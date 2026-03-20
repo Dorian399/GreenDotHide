@@ -8,18 +8,14 @@
     android:orientation="vertical"
     tools:context=".MainActivity">
 
-    <LinearLayout
+    <com.dorian15.greendothide.ModuleStatusView
+        android:id="@+id/moduleStatus"
         android:layout_width="match_parent"
         android:layout_height="130dp"
         android:layout_marginTop="60dp"
         android:layout_marginBottom="30dp"
         android:layout_marginLeft="30dp"
-        android:layout_marginRight="30dp"
-        android:orientation="horizontal"
-        android:background="@drawable/module_status_loading">
-
-
-    </LinearLayout>
+        android:layout_marginRight="30dp"/>
 
     <View
         android:layout_width="match_parent"
