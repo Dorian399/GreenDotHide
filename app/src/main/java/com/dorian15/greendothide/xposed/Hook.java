@@ -3,12 +3,14 @@ package com.dorian15.greendothide.xposed;
 import android.graphics.Rect;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
+
 import java.util.List;
 
 
 import de.robv.android.xposed.IXposedHookInitPackageResources;
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
+import de.robv.android.xposed.XC_MethodReplacement;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_InitPackageResources;
@@ -17,6 +19,12 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 public class Hook implements IXposedHookLoadPackage, IXposedHookInitPackageResources {
     @Override
     public void handleLoadPackage(final LoadPackageParam lpparam) throws Throwable {
+
+        // self hook to show module as enabled
+        if(lpparam.packageName.equals("com.dorian15.greendothide"))
+            XposedHelpers.findAndHookMethod("com.dorian15.greendothide.MainActivity", lpparam.classLoader, "isModuleEnabled",
+                    XC_MethodReplacement.returnConstant(true));
+
         if (!lpparam.packageName.equals("com.android.systemui"))
             return;
 

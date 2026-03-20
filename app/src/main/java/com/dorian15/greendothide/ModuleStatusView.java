@@ -9,6 +9,12 @@ import android.widget.TextView;
 
 public class ModuleStatusView extends LinearLayout {
 
+    public static class Status {
+        public static final int STATUS_ACTIVE = 0;
+        public static final int STATUS_INACTIVE = 1;
+        public static final int STATUS_LOADING = 2;
+    }
+
     private ImageView icon;
     private TextView statusText;
 
@@ -25,6 +31,29 @@ public class ModuleStatusView extends LinearLayout {
         init(context, attrs);
     }
 
+    public void setStatus(int status) {
+        switch(status){
+            case Status.STATUS_ACTIVE:
+                this.statusText.setText(R.string.module_status_active);
+                this.icon.setImageResource(R.drawable.baseline_check_circle);
+                setBackgroundResource(R.drawable.module_status_active);
+                break;
+
+            case Status.STATUS_LOADING:
+                this.statusText.setText(R.string.module_status_loading);
+                this.icon.setImageResource(R.drawable.baseline_info);
+                setBackgroundResource(R.drawable.module_status_loading);
+                break;
+
+            case Status.STATUS_INACTIVE:
+            default:
+                this.statusText.setText(R.string.module_status_inactive);
+                this.icon.setImageResource(R.drawable.baseline_error);
+                setBackgroundResource(R.drawable.module_status_inactive);
+                break;
+        }
+    }
+
     private int dpToPx(int dp) {
         return Math.round(dp * getResources().getDisplayMetrics().density);
     }
@@ -38,7 +67,6 @@ public class ModuleStatusView extends LinearLayout {
         setLayoutParams(params);
         setOrientation(HORIZONTAL);
         setGravity(Gravity.CENTER);
-        setBackgroundResource(R.drawable.module_status_loading);
 
         this.icon = new ImageView(context);
         LayoutParams imgParams = new LayoutParams(
@@ -47,7 +75,6 @@ public class ModuleStatusView extends LinearLayout {
                 1f
         );
         this.icon.setLayoutParams(imgParams);
-        this.icon.setImageResource(R.drawable.baseline_info);
 
         this.statusText = new TextView(context);
         LayoutParams textParams = new LayoutParams(
@@ -56,9 +83,10 @@ public class ModuleStatusView extends LinearLayout {
                 1f
         );
         this.statusText.setLayoutParams(textParams);
-        this.statusText.setText("Loading module status...");
         this.statusText.setTextSize(20);
         this.statusText.setTextColor( getResources().getColor( R.color.white, getContext().getTheme() ) );
+
+        setStatus(Status.STATUS_LOADING);
 
         addView(this.icon);
         addView(this.statusText);

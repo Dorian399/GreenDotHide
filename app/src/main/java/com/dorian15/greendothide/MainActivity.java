@@ -10,6 +10,10 @@ import androidx.core.view.WindowInsetsCompat;
 
 public class MainActivity extends AppCompatActivity {
 
+    private boolean isModuleEnabled(){
+        return false;
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -20,5 +24,13 @@ public class MainActivity extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+        ModuleStatusView moduleStatus = findViewById(R.id.moduleStatus);
+
+        if(isModuleEnabled()) {
+            moduleStatus.setStatus(ModuleStatusView.Status.STATUS_ACTIVE);
+        }else{
+            moduleStatus.setStatus(ModuleStatusView.Status.STATUS_INACTIVE);
+        }
     }
 }
