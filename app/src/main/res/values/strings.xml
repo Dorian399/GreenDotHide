@@ -3,4 +3,10 @@
     <string name="module_status_loading">Loading module status…</string>
     <string name="module_status_active">Module properly loaded.</string>
     <string name="module_status_inactive">Module failed to load.</string>
+    <string name="disable_location_indicator">Disable location indicator.</string>
+    <string name="disable_microphone_indicator">Disable microphone indicator.</string>
+    <string name="disable_camera_indicator">Disable camera indicator.</string>
+    <string name="disable_media_projection_indicator">Disable media projection indicator.</string>
+    <string name="hide_homescreen_icon">Hide homescreen icon.</string>
+    <string name="restart_systemui">Restart SystemUI</string>
 </resources>

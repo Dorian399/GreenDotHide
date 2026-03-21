@@ -30,25 +30,25 @@
         android:orientation="vertical">
 
         <com.google.android.material.switchmaterial.SwitchMaterial
-            android:text="Disable location indicator."
+            android:text="@string/disable_location_indicator"
             android:textSize="18sp"
             android:layout_width="match_parent"
             android:layout_height="50dp"
             android:gravity="start|center" />
         <com.google.android.material.switchmaterial.SwitchMaterial
-            android:text="Disable microphone indicator."
+            android:text="@string/disable_microphone_indicator"
             android:textSize="18sp"
             android:layout_width="match_parent"
             android:layout_height="50dp"
             android:gravity="start|center" />
         <com.google.android.material.switchmaterial.SwitchMaterial
-            android:text="Disable camera indicator."
+            android:text="@string/disable_camera_indicator"
             android:textSize="18sp"
             android:layout_width="match_parent"
             android:layout_height="50dp"
             android:gravity="start|center" />
         <com.google.android.material.switchmaterial.SwitchMaterial
-            android:text="Disable media projection indicator."
+            android:text="@string/disable_media_projection_indicator"
             android:textSize="18sp"
             android:layout_width="match_parent"
             android:layout_height="50dp"
@@ -62,7 +62,7 @@
         android:background="@color/grey" />
 
         <com.google.android.material.switchmaterial.SwitchMaterial
-            android:text="Hide homescreen icon."
+            android:text="@string/hide_homescreen_icon"
             android:textSize="18sp"
             android:layout_width="match_parent"
             android:layout_height="50dp"
@@ -76,7 +76,7 @@
         android:background="@color/grey" />
 
     <Button
-        android:text="Restart SystemUI"
+        android:text="@string/restart_systemui"
         android:layout_width="wrap_content"
         android:layout_height="50dp"
         android:layout_marginStart="18dp"
