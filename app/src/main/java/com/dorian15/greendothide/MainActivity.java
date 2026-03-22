@@ -67,8 +67,17 @@ public class MainActivity extends AppCompatActivity {
 
         try {
             sharedPrefs = getSharedPreferences("prefs",MODE_WORLD_READABLE);
+            if(!isModuleEnabled()){
+                mainSwitches.forEach((switchMaterial -> {
+                    switchMaterial.setEnabled(false);
+                }));
+            }
         }catch(Exception e){
+            // When using private mode the settings become irrelevant.
             sharedPrefs = getSharedPreferences("prefs",MODE_PRIVATE);
+            mainSwitches.forEach((switchMaterial -> {
+                switchMaterial.setEnabled(false);
+            }));
         }
 
         loadSwitchesSettings(sharedPrefs,mainSwitches);
