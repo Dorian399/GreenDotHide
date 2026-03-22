@@ -30,24 +30,32 @@
         android:orientation="vertical">
 
         <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/disable_location_indicator"
+            android:tag="no_logic"
             android:text="@string/disable_location_indicator"
             android:textSize="18sp"
             android:layout_width="match_parent"
             android:layout_height="50dp"
             android:gravity="start|center" />
         <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/disable_microphone_indicator"
+            android:tag="no_logic"
             android:text="@string/disable_microphone_indicator"
             android:textSize="18sp"
             android:layout_width="match_parent"
             android:layout_height="50dp"
             android:gravity="start|center" />
         <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/disable_camera_indicator"
+            android:tag="no_logic"
             android:text="@string/disable_camera_indicator"
             android:textSize="18sp"
             android:layout_width="match_parent"
             android:layout_height="50dp"
             android:gravity="start|center" />
         <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/disable_media_projection_indicator"
+            android:tag="no_logic"
             android:text="@string/disable_media_projection_indicator"
             android:textSize="18sp"
             android:layout_width="match_parent"
@@ -62,6 +70,7 @@
         android:background="@color/grey" />
 
         <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/hide_homescreen_icon"
             android:text="@string/hide_homescreen_icon"
             android:textSize="18sp"
             android:layout_width="match_parent"
