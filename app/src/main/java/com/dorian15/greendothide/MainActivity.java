@@ -49,7 +49,7 @@ public class MainActivity extends AppCompatActivity {
         mainSwitches.add(findViewById(R.id.disable_media_projection_indicator));
         mainSwitches.add(findViewById(R.id.hide_homescreen_icon));
 
-        SharedPreferences sharedPrefs = getSharedPreferences("prefs",MODE_PRIVATE);
+        SharedPreferences sharedPrefs = getSharedPreferences("prefs",MODE_WORLD_READABLE);
 
         loadSwitchesSettings(sharedPrefs,mainSwitches);
         addSwitchListeners(sharedPrefs, mainSwitches);

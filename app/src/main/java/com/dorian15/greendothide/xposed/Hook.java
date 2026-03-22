@@ -1,6 +1,9 @@
 package com.dorian15.greendothide.xposed;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Rect;
+import android.os.Bundle;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
@@ -11,6 +14,7 @@ import de.robv.android.xposed.IXposedHookInitPackageResources;
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XC_MethodReplacement;
+import de.robv.android.xposed.XSharedPreferences;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_InitPackageResources;
@@ -28,6 +32,13 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookInitPackageResou
         if (!lpparam.packageName.equals("com.android.systemui"))
             return;
 
+        XSharedPreferences sharedPrefs = new XSharedPreferences("com.dorian15.greendothide","prefs");
+        sharedPrefs.reload();
+        boolean hideLocation = sharedPrefs.getBoolean("disable_location_indicator",true);
+        boolean hideMic = sharedPrefs.getBoolean("disable_microphone_indicator",true);
+        boolean hideCamera = sharedPrefs.getBoolean("disable_camera_indicator",true);
+        boolean hideMedia = sharedPrefs.getBoolean("disable_media_projection_indicator",true);
+
         // HyperOS/MIUI
         String className = "com.android.systemui.statusbar.privacy.MiuiPrivacyControllerImpl";
         String methodName = "setStatus";
@@ -42,7 +53,30 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookInitPackageResou
                     new XC_MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) {
-                            param.setResult(null);
+                            Bundle bundleArg = (Bundle)param.args[2];
+                            int[] dotType = bundleArg.getIntArray("key_prompt_type");
+
+                            if(hideCamera)
+                                dotType[0]=0;
+                            if(hideMic)
+                                dotType[1]=0;
+                            if(hideLocation)
+                                dotType[2]=0;
+                            if(hideMedia)
+                                dotType[3]=0;
+
+                            bundleArg.putIntArray("key_prompt_type",dotType);
+
+                            boolean isEmpty=true;
+                            for(int i=0; i<dotType.length;i++){
+                                if(dotType[i]==1){
+                                    isEmpty=false;
+                                    break;
+                                }
+                            }
+
+                            if(isEmpty)
+                                param.setResult(null);
                         }
                     }
             );
