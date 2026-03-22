@@ -1,6 +1,8 @@
 package com.dorian15.greendothide;
 
+import android.content.ComponentName;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -108,7 +110,19 @@ public class MainActivity extends AppCompatActivity {
             editor.putBoolean(idString,isChecked);
             editor.apply();
 
-            // Logic here
+            PackageManager pkgMan = getPackageManager();
+            if(isChecked){
+                pkgMan.setComponentEnabledSetting(
+                        new ComponentName(this, LauncherIcon.class),
+                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                        PackageManager.DONT_KILL_APP
+                );
+           }else{
+                pkgMan.setComponentEnabledSetting(
+                        new ComponentName(this, LauncherIcon.class),
+                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                        PackageManager.DONT_KILL_APP
+                );            }
         }));
     }
 }
