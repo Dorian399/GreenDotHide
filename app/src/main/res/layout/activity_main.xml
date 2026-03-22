@@ -85,6 +85,7 @@
         android:background="@color/grey" />
 
     <Button
+        android:id="@+id/restart_systemui"
         android:text="@string/restart_systemui"
         android:layout_width="wrap_content"
         android:layout_height="50dp"

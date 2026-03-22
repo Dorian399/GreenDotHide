@@ -2,8 +2,11 @@ package com.dorian15.greendothide;
 
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.Switch;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
@@ -14,6 +17,7 @@ import androidx.core.view.WindowInsetsCompat;
 import com.google.android.material.materialswitch.MaterialSwitch;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,6 +25,14 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean isModuleEnabled(){
         return false;
+    }
+
+    private void restartSystemUI(){
+        try {
+            Runtime.getRuntime().exec(new String[]{"su", "-c", "killall com.android.systemui"});
+        } catch (IOException e) {
+            Toast.makeText(this,R.string.restart_systemui_fail,Toast.LENGTH_LONG).show();
+        }
     }
 
     @Override
@@ -53,6 +65,11 @@ public class MainActivity extends AppCompatActivity {
 
         loadSwitchesSettings(sharedPrefs,mainSwitches);
         addSwitchListeners(sharedPrefs, mainSwitches);
+
+        Button restartSystemUIButton = findViewById(R.id.restart_systemui);
+        restartSystemUIButton.setOnClickListener((View v) -> {
+            restartSystemUI();
+        });
     }
 
     private void loadSwitchesSettings(SharedPreferences sharedPrefs,List<SwitchMaterial> switches){
@@ -87,6 +104,5 @@ public class MainActivity extends AppCompatActivity {
 
             // Logic here
         }));
-
     }
 }

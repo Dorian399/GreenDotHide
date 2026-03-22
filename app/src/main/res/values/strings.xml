@@ -9,4 +9,5 @@
     <string name="disable_media_projection_indicator">Disable media projection indicator.</string>
     <string name="hide_homescreen_icon">Hide homescreen icon.</string>
     <string name="restart_systemui">Restart SystemUI</string>
+    <string name="restart_systemui_fail">Failed to restart SystemUI</string>
 </resources>
