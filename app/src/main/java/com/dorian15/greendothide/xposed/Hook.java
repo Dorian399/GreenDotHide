@@ -94,7 +94,8 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookInitPackageResou
                     new XC_MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) {
-                            param.setResult(false);
+                            if(hideLocation)
+                                param.setResult(false);
                         }
                     }
             );
@@ -112,7 +113,8 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookInitPackageResou
                     new XC_MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) {
-                            param.setResult(false);
+                            if (hideMic && hideCamera)
+                                param.setResult(false);
                         }
                     }
             );
@@ -130,7 +132,8 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookInitPackageResou
                     new XC_MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) {
-                            param.setResult(false);
+                            if(hideMedia)
+                                param.setResult(false);
                         }
                     }
             );
@@ -148,8 +151,16 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookInitPackageResou
                     methodName,
                     new XC_MethodHook() {
                         @Override
-                        protected void beforeHookedMethod(MethodHookParam param) {
-                            param.setResult(false);
+                        protected void afterHookedMethod(MethodHookParam param) {
+                            List<?> privacyList = (List<?>) XposedHelpers.getObjectField(param.thisObject, "privacyList");
+                            privacyList.removeIf(privacyItem -> {
+                                String privacyType = XposedHelpers.getObjectField(privacyItem, "privacyType").toString();
+                                return (privacyType.equals("TYPE_MICROPHONE") && hideMic) ||
+                                        (privacyType.equals("TYPE_CAMERA") && hideCamera) ||
+                                        (privacyType.equals("TYPE_LOCATION") && hideLocation) ||
+                                        (privacyType.equals("TYPE_MEDIA_PROJECTION") && hideMedia);
+                            });
+                            XposedHelpers.setObjectField(param.thisObject,"privacyList",privacyList);
                         }
                     }
             );
