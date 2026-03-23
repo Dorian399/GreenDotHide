@@ -84,60 +84,63 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookInitPackageResou
         }
 
         // AOSP based SystemUI
-        className = "com.android.systemui.privacy.PrivacyConfig";
-        methodName = "isLocationEnabled";
-        try{
-            XposedHelpers.findAndHookMethod(
-                    className,
-                    lpparam.classLoader,
-                    methodName,
-                    new XC_MethodHook() {
-                        @Override
-                        protected void beforeHookedMethod(MethodHookParam param) {
-                            param.setResult(false);
-                        }
-                    }
-            );
-            XposedBridge.log("[GreenDotHide] Hooked into: "+className+"."+methodName);
-        }catch(Throwable e){
-            XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
-        }
-
-        methodName = "isMicCameraEnabled";
-        try{
-            XposedHelpers.findAndHookMethod(
-                    className,
-                    lpparam.classLoader,
-                    methodName,
-                    new XC_MethodHook() {
-                        @Override
-                        protected void beforeHookedMethod(MethodHookParam param) {
-                            param.setResult(false);
-                        }
-                    }
-            );
-            XposedBridge.log("[GreenDotHide] Hooked into: "+className+"."+methodName);
-        }catch(Throwable e){
-            XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
-        }
-
-        methodName = "isMediaProjectionEnabled";
-        try{
-            XposedHelpers.findAndHookMethod(
-                    className,
-                    lpparam.classLoader,
-                    methodName,
-                    new XC_MethodHook() {
-                        @Override
-                        protected void beforeHookedMethod(MethodHookParam param) {
-                            param.setResult(false);
-                        }
-                    }
-            );
-            XposedBridge.log("[GreenDotHide] Hooked into: "+className+"."+methodName);
-        }catch(Throwable e){
-            XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
-        }
+//        className = "com.android.systemui.privacy.PrivacyConfig";
+//        methodName = "isLocationEnabled";
+//        try{
+//            XposedHelpers.findAndHookMethod(
+//                    className,
+//                    lpparam.classLoader,
+//                    methodName,
+//                    new XC_MethodHook() {
+//                        @Override
+//                        protected void beforeHookedMethod(MethodHookParam param) {
+//                            if(hideLocation)
+//                                param.setResult(false);
+//                        }
+//                    }
+//            );
+//            XposedBridge.log("[GreenDotHide] Hooked into: "+className+"."+methodName);
+//        }catch(Throwable e){
+//            XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
+//        }
+//
+//        methodName = "isMicCameraEnabled";
+//        try{
+//            XposedHelpers.findAndHookMethod(
+//                    className,
+//                    lpparam.classLoader,
+//                    methodName,
+//                    new XC_MethodHook() {
+//                        @Override
+//                        protected void beforeHookedMethod(MethodHookParam param) {
+//                            if (hideMic && hideCamera)
+//                                param.setResult(false);
+//                        }
+//                    }
+//            );
+//            XposedBridge.log("[GreenDotHide] Hooked into: "+className+"."+methodName);
+//        }catch(Throwable e){
+//            XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
+//        }
+//
+//        methodName = "isMediaProjectionEnabled";
+//        try{
+//            XposedHelpers.findAndHookMethod(
+//                    className,
+//                    lpparam.classLoader,
+//                    methodName,
+//                    new XC_MethodHook() {
+//                        @Override
+//                        protected void beforeHookedMethod(MethodHookParam param) {
+//                            if(hideMedia)
+//                                param.setResult(false);
+//                        }
+//                    }
+//            );
+//            XposedBridge.log("[GreenDotHide] Hooked into: "+className+"."+methodName);
+//        }catch(Throwable e){
+//            XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
+//        }
 
         className = "com.android.systemui.privacy.PrivacyItemController";
         methodName = "updatePrivacyList";
@@ -148,8 +151,16 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookInitPackageResou
                     methodName,
                     new XC_MethodHook() {
                         @Override
-                        protected void beforeHookedMethod(MethodHookParam param) {
-                            param.setResult(false);
+                        protected void afterHookedMethod(MethodHookParam param) {
+                            List<?> privacyList = (List<?>) XposedHelpers.getObjectField(param.thisObject, "privacyList");
+                            privacyList.removeIf(privacyItem -> {
+                                String privacyType = XposedHelpers.getObjectField(privacyItem, "privacyType").toString();
+                                return (privacyType.equals("TYPE_MICROPHONE") && hideMic) ||
+                                        (privacyType.equals("TYPE_CAMERA") && hideCamera) ||
+                                        (privacyType.equals("TYPE_LOCATION") && hideLocation) ||
+                                        (privacyType.equals("TYPE_MEDIA_PROJECTION") && hideMedia);
+                            });
+                            XposedHelpers.setObjectField(param.thisObject,"privacyList",privacyList);
                         }
                     }
             );
