@@ -10,4 +10,5 @@
     <color name="grey">#808080</color>
     <color name="green">#4CAF50</color>
     <color name="red">#AB2D21</color>
+    <color name="background_icon">#FFFFFFFF</color>
 </resources>
