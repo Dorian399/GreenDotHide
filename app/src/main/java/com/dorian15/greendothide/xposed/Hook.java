@@ -18,7 +18,7 @@ import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_InitPackageResources;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
-public class Hook implements IXposedHookLoadPackage, IXposedHookInitPackageResources {
+public class Hook implements IXposedHookLoadPackage{
     @Override
     public void handleLoadPackage(final LoadPackageParam lpparam) throws Throwable {
 
@@ -256,20 +256,6 @@ public class Hook implements IXposedHookLoadPackage, IXposedHookInitPackageResou
             XposedBridge.log("[GreenDotHide] Hooked into: "+className+"."+methodName);
         }catch(Throwable e){
             XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
-        }
-
-    }
-
-    @Override
-    public void handleInitPackageResources(XC_InitPackageResources.InitPackageResourcesParam resparam) throws Throwable {
-        if (!resparam.packageName.equals("com.android.systemui"))
-            return;
-
-        try{
-            resparam.res.setReplacement("com.android.systemui", "bool", "config_enablePrivacyDot", false);
-            XposedBridge.log("[GreenDotHide] Hooked resource: config_enablePrivacyDot");
-        }catch(RuntimeException e){
-            XposedBridge.log("[GreenDotHide] Failed to hook resource: config_enablePrivacyDot");
         }
 
     }
