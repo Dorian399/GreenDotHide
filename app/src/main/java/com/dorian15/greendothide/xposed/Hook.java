@@ -197,5 +197,33 @@ public class Hook implements IXposedHookLoadPackage{
         }catch(Throwable e){
             XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
         }
+
+        className = "com.android.systemui.privacy.PrivacyItemController$updateListAndNotifyChanges$1";
+        methodName = "run";
+        try{
+            XposedHelpers.findAndHookMethod(
+                    className,
+                    lpparam.classLoader,
+                    methodName,
+                    new XC_MethodHook() {
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam param) {
+                            Object privacyItemController = XposedHelpers.getObjectField(param.thisObject, "this$0");
+                            List<?> privacyList = (List<?>) XposedHelpers.getObjectField(privacyItemController, "privacyList");
+                            privacyList.removeIf(privacyItem -> {
+                                String privacyType = XposedHelpers.getObjectField(privacyItem, "privacyType").toString();
+                                return (privacyType.equals("TYPE_MICROPHONE") && hideMic) ||
+                                        (privacyType.equals("TYPE_CAMERA") && hideCamera) ||
+                                        (privacyType.equals("TYPE_LOCATION") && hideLocation) ||
+                                        (privacyType.equals("TYPE_MEDIA_PROJECTION") && hideMedia);
+                            });
+                            XposedHelpers.setObjectField(privacyItemController,"privacyList",privacyList);
+                        }
+                    }
+            );
+            XposedBridge.log("[GreenDotHide] Hooked into: "+className+"."+methodName);
+        }catch(Throwable e){
+            XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
+        }
     }
 }
