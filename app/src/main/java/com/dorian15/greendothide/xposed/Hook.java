@@ -20,6 +20,23 @@ import de.robv.android.xposed.callbacks.XC_InitPackageResources;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
 public class Hook implements IXposedHookLoadPackage{
+
+    private boolean hideLocation=true;
+    private boolean hideMic=true;
+    private boolean hideCamera=true;
+    private boolean hideMedia=true;
+
+    private void updatePrivacyList(Object privacyItemController){
+        List<?> privacyList = (List<?>) XposedHelpers.getObjectField(privacyItemController, "privacyList");
+        privacyList.removeIf(privacyItem -> {
+            String privacyType = XposedHelpers.getObjectField(privacyItem, "privacyType").toString();
+            return (privacyType.equals("TYPE_MICROPHONE") && hideMic) ||
+                    (privacyType.equals("TYPE_CAMERA") && hideCamera) ||
+                    (privacyType.equals("TYPE_LOCATION") && hideLocation) ||
+                    (privacyType.equals("TYPE_MEDIA_PROJECTION") && hideMedia);
+        });
+        XposedHelpers.setObjectField(privacyItemController,"privacyList",privacyList);
+    }
     @Override
     public void handleLoadPackage(final LoadPackageParam lpparam) throws Throwable {
 
@@ -33,10 +50,10 @@ public class Hook implements IXposedHookLoadPackage{
 
         XSharedPreferences sharedPrefs = new XSharedPreferences("com.dorian15.greendothide","prefs");
         sharedPrefs.reload();
-        boolean hideLocation = sharedPrefs.getBoolean("disable_location_indicator",true);
-        boolean hideMic = sharedPrefs.getBoolean("disable_microphone_indicator",true);
-        boolean hideCamera = sharedPrefs.getBoolean("disable_camera_indicator",true);
-        boolean hideMedia = sharedPrefs.getBoolean("disable_media_projection_indicator",true);
+        hideLocation = sharedPrefs.getBoolean("disable_location_indicator",true);
+        hideMic = sharedPrefs.getBoolean("disable_microphone_indicator",true);
+        hideCamera = sharedPrefs.getBoolean("disable_camera_indicator",true);
+        hideMedia = sharedPrefs.getBoolean("disable_media_projection_indicator",true);
 
         // HyperOS/MIUI
         String className = "com.android.systemui.statusbar.privacy.MiuiPrivacyControllerImpl";
@@ -143,6 +160,7 @@ public class Hook implements IXposedHookLoadPackage{
             XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
         }
 
+        // Android 12-13
         className = "com.android.systemui.privacy.PrivacyItemController";
         methodName = "updatePrivacyList";
         try{
@@ -153,15 +171,7 @@ public class Hook implements IXposedHookLoadPackage{
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
-                            List<?> privacyList = (List<?>) XposedHelpers.getObjectField(param.thisObject, "privacyList");
-                            privacyList.removeIf(privacyItem -> {
-                                String privacyType = XposedHelpers.getObjectField(privacyItem, "privacyType").toString();
-                                return (privacyType.equals("TYPE_MICROPHONE") && hideMic) ||
-                                        (privacyType.equals("TYPE_CAMERA") && hideCamera) ||
-                                        (privacyType.equals("TYPE_LOCATION") && hideLocation) ||
-                                        (privacyType.equals("TYPE_MEDIA_PROJECTION") && hideMedia);
-                            });
-                            XposedHelpers.setObjectField(param.thisObject,"privacyList",privacyList);
+                            updatePrivacyList(param.thisObject);
                         }
                     }
             );
@@ -170,6 +180,7 @@ public class Hook implements IXposedHookLoadPackage{
             XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
         }
 
+        // Android 15-16
         className = "com.android.systemui.privacy.PrivacyItemController";
         methodName = "getPrivacyList$frameworks__base__packages__SystemUI__android_common__SystemUI_core";
 
@@ -181,15 +192,7 @@ public class Hook implements IXposedHookLoadPackage{
                     new XC_MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) {
-                            List<?> privacyList = (List<?>) XposedHelpers.getObjectField(param.thisObject, "privacyList");
-                            privacyList.removeIf(privacyItem -> {
-                                String privacyType = XposedHelpers.getObjectField(privacyItem, "privacyType").toString();
-                                return (privacyType.equals("TYPE_MICROPHONE") && hideMic) ||
-                                        (privacyType.equals("TYPE_CAMERA") && hideCamera) ||
-                                        (privacyType.equals("TYPE_LOCATION") && hideLocation) ||
-                                        (privacyType.equals("TYPE_MEDIA_PROJECTION") && hideMedia);
-                            });
-                            XposedHelpers.setObjectField(param.thisObject,"privacyList",privacyList);
+                            updatePrivacyList(param.thisObject);
                         }
                     }
             );
@@ -198,6 +201,7 @@ public class Hook implements IXposedHookLoadPackage{
             XposedBridge.log("[GreenDotHide] Ignoring hook: "+className+"."+methodName);
         }
 
+        // Android 14
         className = "com.android.systemui.privacy.PrivacyItemController$updateListAndNotifyChanges$1";
         methodName = "run";
         try{
@@ -209,15 +213,7 @@ public class Hook implements IXposedHookLoadPackage{
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
                             Object privacyItemController = XposedHelpers.getObjectField(param.thisObject, "this$0");
-                            List<?> privacyList = (List<?>) XposedHelpers.getObjectField(privacyItemController, "privacyList");
-                            privacyList.removeIf(privacyItem -> {
-                                String privacyType = XposedHelpers.getObjectField(privacyItem, "privacyType").toString();
-                                return (privacyType.equals("TYPE_MICROPHONE") && hideMic) ||
-                                        (privacyType.equals("TYPE_CAMERA") && hideCamera) ||
-                                        (privacyType.equals("TYPE_LOCATION") && hideLocation) ||
-                                        (privacyType.equals("TYPE_MEDIA_PROJECTION") && hideMedia);
-                            });
-                            XposedHelpers.setObjectField(privacyItemController,"privacyList",privacyList);
+                            updatePrivacyList(privacyItemController);
                         }
                     }
             );
