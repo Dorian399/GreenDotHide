@@ -1,22 +1,15 @@
 package com.dorian15.greendothide.xposed;
 
-import android.graphics.Rect;
 import android.os.Bundle;
-import android.view.ViewGroup;
-import android.widget.FrameLayout;
-
-import java.util.ArrayList;
 import java.util.List;
 
 
-import de.robv.android.xposed.IXposedHookInitPackageResources;
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XC_MethodReplacement;
 import de.robv.android.xposed.XSharedPreferences;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
-import de.robv.android.xposed.callbacks.XC_InitPackageResources;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
 
 public class Hook implements IXposedHookLoadPackage{
