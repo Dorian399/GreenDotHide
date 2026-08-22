@@ -76,6 +76,7 @@ public class Hook implements IXposedHookLoadPackage {
             XposedBridge.log("[GreenDotHide] Hooked into: " + cls + "." + method);
         } catch (Throwable e) {
             XposedBridge.log("[GreenDotHide] Ignoring hook: " + cls + "." + method);
+            XposedBridge.log(e);
         }
     }
 
@@ -120,18 +121,22 @@ public class Hook implements IXposedHookLoadPackage {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 Bundle bundleArg = (Bundle) param.args[2];
+                if (bundleArg == null)
+                    return;
                 int[] dotType = bundleArg.getIntArray("key_prompt_type");
                 if (dotType == null || dotType.length == 0)
                     return;
                 boolean[] hide = {hideCamera, hideMic, hideLocation, hideMedia};
-                boolean isEmpty = true;
-                for (int i = 0; i < Math.min(dotType.length, hide.length); i++) {
+                for (int i = 0; i < Math.min(dotType.length, hide.length); i++)
                     if (hide[i])
                         dotType[i] = 0;
-                    if (dotType[i] != 0)
-                        isEmpty = false;
-                }
                 bundleArg.putIntArray("key_prompt_type", dotType);
+                boolean isEmpty = true;
+                for (int v : dotType)
+                    if (v != 0) {
+                        isEmpty = false;
+                        break;
+                    }
                 if (isEmpty)
                     param.setResult(null);
             }
