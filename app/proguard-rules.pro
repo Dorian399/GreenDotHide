@@ -18,4 +18,9 @@
 
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
-#-renamesourcefileattribute SourceFile
+ #-renamesourcefileattribute SourceFile
+
+# The Xposed framework instantiates the entry class by name from
+# META-INF/xposed/java_init.list, so it must survive shrinking and obfuscation.
+-keep class com.dorian15.greendothide.xposed.Hook { *; }
+-keep class com.dorian15.greendothide.xposed.Reflect { *; }
