@@ -1,6 +1,7 @@
 package com.dorian15.greendothide.xposed;
 
 import android.os.Bundle;
+import android.widget.RemoteViews;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,6 +24,28 @@ public class Hook implements IXposedHookLoadPackage {
     private boolean hideMic = true;
     private boolean hideCamera = true;
     private boolean hideMedia = true;
+
+    static int[] filterPromptTypes(int[] types, boolean[] hidden) {
+        if (types == null)
+            return null;
+        int[] filtered = types.clone();
+        for (int i = 0; i < Math.min(filtered.length, hidden.length); i++)
+            if (hidden[i])
+                filtered[i] = 0;
+        return filtered;
+    }
+
+    static boolean shouldClearPrompt(String action, int[] filtered, boolean allHidden) {
+        if (!"action_update_prompt".equals(action)
+                && !"action_control_center_update_prompt".equals(action))
+            return false;
+        if (filtered == null)
+            return allHidden;
+        for (int type : filtered)
+            if (type != 0)
+                return false;
+        return true;
+    }
 
     private boolean shouldHide(String privacyType) {
         return (privacyType.equals("TYPE_MICROPHONE") && hideMic)
@@ -99,48 +122,54 @@ public class Hook implements IXposedHookLoadPackage {
         hideMedia = prefs.getBoolean("disable_media_projection_indicator", true);
 
         // MIUI/HyperOS: entry point of privacy item updates; hand MIUI a filtered
-        // copy instead of the original list, and skip updates left fully hidden.
+        // copy, including empty updates so previously visible items get cleared.
         safeHook(lpparam, MIUI_PRIVACY_CONTROLLER, "onPrivacyItemsChanged", new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
                 List<?> incoming = (List<?>) param.args[0];
                 if (incoming == null)
                     return;
-                List<Object> filtered = filterPrivacyList(incoming);
-                if (filtered.isEmpty())
-                    param.setResult(null);
-                else
-                    param.args[0] = filtered;
+                param.args[0] = filterPrivacyList(incoming);
             }
         }, List.class);
 
-        // HyperOS/MIUI status path; zero out hidden prompt types and skip the
-        // original when nothing remains, so the pre-rendered dot RemoteViews are
-        // never applied to the status bar.
+        // MIUI sends RemoteViews and prompt types in separate messages. Never
+        // drop just the type message: that leaves a live prompt with null types.
+        // Use MIUI's status=0 path to clear fully hidden prompts and pending UI.
         safeHook(lpparam, MIUI_PRIVACY_CONTROLLER, "setStatus", new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
+                String action = (String) param.args[1];
+                if (!"action_update_prompt".equals(action)
+                        && !"action_control_center_update_prompt".equals(action))
+                    return;
+                if ((Integer) param.args[0] == 0)
+                    return;
                 Bundle bundleArg = (Bundle) param.args[2];
                 if (bundleArg == null)
                     return;
-                int[] dotType = bundleArg.getIntArray("key_prompt_type");
-                if (dotType == null || dotType.length == 0)
-                    return;
                 boolean[] hide = {hideCamera, hideMic, hideLocation, hideMedia};
-                for (int i = 0; i < Math.min(dotType.length, hide.length); i++)
-                    if (hide[i])
-                        dotType[i] = 0;
-                bundleArg.putIntArray("key_prompt_type", dotType);
-                boolean isEmpty = true;
-                for (int v : dotType)
-                    if (v != 0) {
-                        isEmpty = false;
-                        break;
-                    }
-                if (isEmpty)
-                    param.setResult(null);
+                int[] filtered = filterPromptTypes(bundleArg.getIntArray("key_prompt_type"), hide);
+                if (filtered != null) {
+                    Bundle copy = new Bundle(bundleArg);
+                    copy.putIntArray("key_prompt_type", filtered);
+                    param.args[2] = copy;
+                }
+                if (shouldClearPrompt(action, filtered, hideCamera && hideMic && hideLocation && hideMedia))
+                    param.args[0] = 0;
             }
         }, int.class, String.class, Bundle.class);
+
+        // Android 14 MIUI also calls this while only the RemoteViews half has
+        // arrived. Preserve its normal cache update without dereferencing null.
+        safeHook(lpparam, "com.android.systemui.statusbar.privacy.MiuiPrivacyFlaresDotController",
+                "updateLastMiuiPromptInfo", new XC_MethodHook() {
+                    @Override
+                    protected void beforeHookedMethod(MethodHookParam param) {
+                        if (param.args[1] == null)
+                            param.args[1] = new int[4];
+                    }
+                }, RemoteViews.class, int[].class);
 
         // AOSP based SystemUI: kill indicators at the config level.
         Object[][] configSwitches = {

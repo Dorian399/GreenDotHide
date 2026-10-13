@@ -10,8 +10,8 @@ android {
         applicationId = "com.dorian15.greendothide"
         minSdk = 24
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.5"
+        versionCode = 6
+        versionName = "1.5.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -37,6 +37,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.cardview)
     testImplementation(libs.junit)
+    testImplementation(fileTree("libs") { include("api-82.jar") })
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
     compileOnly(fileTree("libs") { include("api-82.jar") })
