@@ -151,10 +151,6 @@ public class Hook extends XposedModule {
             if (!(chain.getArg(2) instanceof Bundle))
                 return chain.proceed();
             boolean[] hide = {hideCamera, hideMic, hideLocation, hideMedia};
-            if (!(hide[0] || hide[1] || hide[2] || hide[3])) {
-                promptStates.remove(controller);
-                return chain.proceed();
-            }
             Bundle bundle = (Bundle) chain.getArg(2);
             boolean viewUpdate = UPDATE_PROMPT.equals(action);
             if (viewUpdate) {
@@ -172,7 +168,7 @@ public class Hook extends XposedModule {
                 copy.putIntArray("key_prompt_type", filterPromptTypes(types, hide));
             MiuiPromptState<Bundle> state = promptStates.get(controller);
             if (state == null) {
-                state = new MiuiPromptState<>(false);
+                state = new MiuiPromptState<>();
                 promptStates.put(controller, state);
             }
             // Cache raw types; API 102 preferences can change without a restart.
@@ -182,9 +178,14 @@ public class Hook extends XposedModule {
                 return chain.proceed(new Object[]{0, action, copy});
             if (!viewUpdate) {
                 Bundle views = state.takeViewsToRestore();
-                if (views != null)
+                if (views != null) {
+                    // A combined update may have cached older filtered types.
+                    // Restore its views with this update's current type decision.
+                    Bundle restored = new Bundle(views);
+                    restored.putIntArray("key_prompt_type", filterPromptTypes(types, hide));
                     getInvoker((Method) chain.getExecutable()).setType(XposedInterface.Invoker.Type.ORIGIN)
-                            .invoke(controller, state.getViewStatus(), UPDATE_PROMPT, new Bundle(views));
+                            .invoke(controller, state.getViewStatus(), UPDATE_PROMPT, restored);
+                }
             }
             return chain.proceed(new Object[]{status, action, copy});
         }

@@ -6,10 +6,17 @@ import static org.junit.Assert.*;
 
 public class HookTest {
     private static final boolean[] ALL = {true, true, true, true};
+    private static final boolean[] CAMERA_ONLY = {true, false, false, false};
+
+    private static MiuiPromptState<String> stateWith(boolean[] hidden) {
+        MiuiPromptState<String> state = new MiuiPromptState<>();
+        state.setHiddenTypes(hidden);
+        return state;
+    }
 
     @Test
     public void liveSettingsReevaluateCachedRawTypes() {
-        MiuiPromptState<String> state = new MiuiPromptState<>(false);
+        MiuiPromptState<String> state = new MiuiPromptState<>();
         state.setHiddenTypes(ALL);
         assertTrue(state.onTypes(new int[]{1, 0, 0, 0}));
         assertTrue(state.onViews(1, "hidden-camera", null));
@@ -21,7 +28,7 @@ public class HookTest {
 
     @Test
     public void liveSettingsDoNotHideUnknownTypesOrAliasFlags() {
-        MiuiPromptState<String> state = new MiuiPromptState<>(false);
+        MiuiPromptState<String> state = new MiuiPromptState<>();
         boolean[] hidden = ALL.clone();
         state.setHiddenTypes(hidden);
         hidden[0] = false;
@@ -43,7 +50,7 @@ public class HookTest {
     public void lastVisibleItemDisappearingClearsOldState() {
         int[] filtered = Hook.filterPromptTypes(new int[]{1, 0, 0, 0},
                 new boolean[]{true, false, false, false});
-        MiuiPromptState<String> state = new MiuiPromptState<>(false);
+        MiuiPromptState<String> state = stateWith(CAMERA_ONLY);
         assertTrue(state.onTypes(filtered));
         assertTrue(state.onTypes(new int[0]));
     }
@@ -52,7 +59,7 @@ public class HookTest {
     public void unknownNullAndShortTypesArePreserved() {
         int[] filtered = Hook.filterPromptTypes(new int[]{1, 1, 1, 1, 2}, ALL);
         assertArrayEquals(new int[]{0, 0, 0, 0, 2}, filtered);
-        assertFalse(new MiuiPromptState<String>(true).onTypes(filtered));
+        assertFalse(stateWith(ALL).onTypes(filtered));
         assertNull(Hook.filterPromptTypes(null, ALL));
         assertArrayEquals(new int[]{0}, Hook.filterPromptTypes(new int[]{1}, ALL));
     }
@@ -62,7 +69,9 @@ public class HookTest {
         int[] input = {1, 1, 1, 1};
         int[] filtered = Hook.filterPromptTypes(input, new boolean[4]);
         assertArrayEquals(input, filtered);
-        assertFalse(new MiuiPromptState<String>(false).onTypes(filtered));
+        MiuiPromptState<String> state = stateWith(new boolean[4]);
+        assertFalse(state.onTypes(filtered));
+        assertFalse(state.onTypes(new int[0]));
     }
 
     @Test
@@ -114,13 +123,17 @@ public class HookTest {
     }
 
     @Test
-    public void completedHiddenPairCannotReplayIntoTheNextPrompt() {
+    public void typeOnlyTransitionRestoresViewsUntilARealStop() {
         for (boolean viewsFirst : new boolean[]{true, false}) {
             Controller controller = new Controller(true);
             controller.pair("old-hidden-camera", new int[4], viewsFirst);
             controller.types(new int[]{0, 0, 0, 0, 1});
+            assertEquals("old-hidden-camera", controller.visibleViews);
+            assertEquals(1, controller.replays);
+            controller.stop();
+            controller.types(new int[]{0, 0, 0, 0, 1});
             assertNull(controller.visibleViews);
-            assertEquals(0, controller.replays);
+            assertEquals(1, controller.replays);
             controller.views("new-unknown-prompt", null);
             assertEquals("new-unknown-prompt", controller.visibleViews);
         }
@@ -154,18 +167,52 @@ public class HookTest {
 
     @Test
     public void cachedDecisionDoesNotAliasTheInputArray() {
-        MiuiPromptState<String> state = new MiuiPromptState<>(true);
+        MiuiPromptState<String> state = stateWith(CAMERA_ONLY);
         int[] types = {0, 1, 0, 0};
         assertFalse(state.onTypes(types));
         types[1] = 0;
         assertFalse(state.onViews(2, "visible", null));
         assertNull(state.takeViewsToRestore());
 
-        MiuiPromptState<String> pending = new MiuiPromptState<>(true);
+        MiuiPromptState<String> pending = stateWith(ALL);
         assertTrue(pending.onViews(2, "pending", null));
         assertFalse(pending.onTypes(new int[]{0, 0, 0, 0, 1}));
         assertEquals("pending", pending.takeViewsToRestore());
         assertEquals(2, pending.getViewStatus());
+    }
+
+    @Test
+    public void disablingAllHidingBetweenHalvesRestoresThePendingView() {
+        Controller controller = new Controller(true);
+        controller.views("camera", null);
+        assertNull(controller.visibleViews);
+        controller.state.setHiddenTypes(new boolean[4]);
+        controller.types(new int[]{1, 0, 0, 0});
+        assertEquals("camera", controller.visibleViews);
+        assertEquals(1, controller.replays);
+    }
+
+    @Test
+    public void hiddenVisibleHiddenVisibleTransitionsKeepCurrentViews() {
+        Controller controller = new Controller(false);
+        controller.pair("current-prompt", new int[]{1, 0, 0, 0}, true);
+        assertNull(controller.visibleViews);
+        for (int i = 1; i <= 2; i++) {
+            controller.types(new int[]{0, 1, 0, 0});
+            assertEquals("current-prompt", controller.visibleViews);
+            assertEquals(i, controller.replays);
+            controller.types(new int[]{1, 0, 0, 0});
+            assertNull(controller.visibleViews);
+        }
+    }
+
+    @Test
+    public void combinedHiddenUpdateCanBeRestoredByTypesOnly() {
+        Controller controller = new Controller(true);
+        controller.views("combined", new int[]{1, 0, 0, 0});
+        controller.state.setHiddenTypes(CAMERA_ONLY);
+        controller.types(new int[]{0, 1, 0, 0});
+        assertEquals("combined", controller.visibleViews);
     }
 
     // Model the observed MIUI contract: status=0 clears the whole prompt;
@@ -177,7 +224,7 @@ public class HookTest {
         int replays;
 
         Controller(boolean allHidden) {
-            state = new MiuiPromptState<>(allHidden);
+            state = stateWith(allHidden ? ALL : CAMERA_ONLY);
         }
 
         void pair(String views, int[] types, boolean viewsFirst) {
