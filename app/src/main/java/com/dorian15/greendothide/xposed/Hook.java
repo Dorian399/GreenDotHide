@@ -19,6 +19,9 @@ public class Hook implements IXposedHookLoadPackage {
     private static final String MIUI_PRIVACY_CONTROLLER = "com.android.systemui.statusbar.privacy.MiuiPrivacyControllerImpl";
     private static final String PRIVACY_ITEM_CONTROLLER = "com.android.systemui.privacy.PrivacyItemController";
     private static final String PRIVACY_CONFIG = "com.android.systemui.privacy.PrivacyConfig";
+    private static final String PROMPT_STATE = "com.dorian15.greendothide.promptState";
+    private static final String UPDATE_PROMPT = "action_update_prompt";
+    private static final String UPDATE_TYPES = "action_control_center_update_prompt";
 
     private boolean hideLocation = true;
     private boolean hideMic = true;
@@ -33,18 +36,6 @@ public class Hook implements IXposedHookLoadPackage {
             if (hidden[i])
                 filtered[i] = 0;
         return filtered;
-    }
-
-    static boolean shouldClearPrompt(String action, int[] filtered, boolean allHidden) {
-        if (!"action_update_prompt".equals(action)
-                && !"action_control_center_update_prompt".equals(action))
-            return false;
-        if (filtered == null)
-            return allHidden;
-        for (int type : filtered)
-            if (type != 0)
-                return false;
-        return true;
     }
 
     private boolean shouldHide(String privacyType) {
@@ -133,30 +124,62 @@ public class Hook implements IXposedHookLoadPackage {
             }
         }, List.class);
 
-        // MIUI sends RemoteViews and prompt types in separate messages. Never
-        // drop just the type message: that leaves a live prompt with null types.
-        // Use MIUI's status=0 path to clear fully hidden prompts and pending UI.
+        // MIUI can send RemoteViews and types separately, in either order. Keep
+        // a controller-local copy so hiding one half cannot lose the other.
         safeHook(lpparam, MIUI_PRIVACY_CONTROLLER, "setStatus", new XC_MethodHook() {
             @Override
-            protected void beforeHookedMethod(MethodHookParam param) {
+            @SuppressWarnings("unchecked")
+            protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
                 String action = (String) param.args[1];
-                if (!"action_update_prompt".equals(action)
-                        && !"action_control_center_update_prompt".equals(action))
+                if (!UPDATE_PROMPT.equals(action) && !UPDATE_TYPES.equals(action))
                     return;
-                if ((Integer) param.args[0] == 0)
+                MiuiPromptState<Bundle> state = (MiuiPromptState<Bundle>)
+                        XposedHelpers.getAdditionalInstanceField(param.thisObject, PROMPT_STATE);
+                int status = (Integer) param.args[0];
+                if (status == 0) {
+                    if (state != null)
+                        state.clear();
                     return;
+                }
                 Bundle bundleArg = (Bundle) param.args[2];
-                if (bundleArg == null)
+                if (bundleArg == null || !(hideCamera || hideMic || hideLocation || hideMedia))
                     return;
+                boolean viewUpdate = UPDATE_PROMPT.equals(action);
+                // Match the original method's no-op cases before caching input.
+                if (viewUpdate) {
+                    int priority = bundleArg.getInt("key_status_bar_priority", -1);
+                    if (priority < 0 || priority > 3
+                            || !(bundleArg.getParcelable("key_status_bar_mini_state") instanceof RemoteViews)
+                            || !(bundleArg.getParcelable("key_status_bar_home_state") instanceof RemoteViews))
+                        return;
+                } else if (bundleArg.getIntArray("key_prompt_type") == null) {
+                    return;
+                }
                 boolean[] hide = {hideCamera, hideMic, hideLocation, hideMedia};
                 int[] filtered = filterPromptTypes(bundleArg.getIntArray("key_prompt_type"), hide);
-                if (filtered != null) {
-                    Bundle copy = new Bundle(bundleArg);
+                Bundle copy = new Bundle(bundleArg);
+                if (filtered != null)
                     copy.putIntArray("key_prompt_type", filtered);
-                    param.args[2] = copy;
+                param.args[2] = copy;
+                if (state == null) {
+                    state = new MiuiPromptState<>(hideCamera && hideMic && hideLocation && hideMedia);
+                    XposedHelpers.setAdditionalInstanceField(param.thisObject, PROMPT_STATE, state);
                 }
-                if (shouldClearPrompt(action, filtered, hideCamera && hideMic && hideLocation && hideMedia))
+                boolean hidden = viewUpdate
+                        ? state.onViews(status, copy, filtered)
+                        : state.onTypes(filtered);
+                if (hidden) {
+                    // Let MIUI clear views, pending intents and queued visibility updates.
                     param.args[0] = 0;
+                } else if (!viewUpdate) {
+                    Bundle views = state.takeViewsToRestore();
+                    if (views != null) {
+                        // Bypass this hook. The current type update then finishes
+                        // the pair before MIUI's queued visibility handler runs.
+                        XposedBridge.invokeOriginalMethod(param.method, param.thisObject,
+                                new Object[]{state.getViewStatus(), UPDATE_PROMPT, new Bundle(views)});
+                    }
+                }
             }
         }, int.class, String.class, Bundle.class);
 
