@@ -11,8 +11,8 @@ android {
         // libxposed api/service 102 declare minSdkVersion 26
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "1.5"
+        versionCode = 6
+        versionName = "1.5.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -39,6 +39,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.cardview)
     testImplementation(libs.junit)
+    testImplementation(libs.xposed.api)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
     // Provided by the Xposed framework at runtime; only the hooked process may touch it.

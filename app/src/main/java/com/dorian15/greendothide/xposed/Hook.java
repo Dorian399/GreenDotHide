@@ -3,10 +3,13 @@ package com.dorian15.greendothide.xposed;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.RemoteViews;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 
 import com.dorian15.greendothide.Prefs;
 
@@ -41,6 +44,19 @@ public class Hook extends XposedModule {
     private volatile boolean hideMic = true;
     private volatile boolean hideCamera = true;
     private volatile boolean hideMedia = true;
+    private static final String UPDATE_PROMPT = "action_update_prompt";
+    private static final String UPDATE_TYPES = "action_control_center_update_prompt";
+    private final Map<Object, MiuiPromptState<Bundle>> promptStates = new WeakHashMap<>();
+
+    static int[] filterPromptTypes(int[] types, boolean[] hidden) {
+        if (types == null)
+            return null;
+        int[] filtered = types.clone();
+        for (int i = 0; i < Math.min(filtered.length, hidden.length); i++)
+            if (hidden[i])
+                filtered[i] = 0;
+        return filtered;
+    }
 
     @Override
     public void onModuleLoaded(ModuleLoadedParam param) {
@@ -61,41 +77,28 @@ public class Hook extends XposedModule {
                 + ", camera=" + hideCamera + ", media=" + hideMedia + ")");
 
         // MIUI/HyperOS: entry point of privacy item updates; hand MIUI a filtered
-        // copy instead of the original list, and skip updates left fully hidden.
+        // copy, including empty updates so previous indicators are cleared.
         hookMethod(classLoader, MIUI_PRIVACY_CONTROLLER, "onPrivacyItemsChanged",
                 chain -> {
                     Object incoming = chain.getArg(0);
                     if (!(incoming instanceof List))
                         return chain.proceed();
                     List<Object> filtered = filterPrivacyList((List<?>) incoming);
-                    if (filtered.isEmpty())
-                        return null;
                     return chain.proceed(new Object[]{filtered});
                 },
                 List.class);
 
-        // HyperOS/MIUI status path; zero out hidden prompt types and skip the
-        // original when nothing remains, so the pre-rendered dot RemoteViews are
-        // never applied to the status bar.
+        // MIUI sends views and types separately on some releases, combined on others.
         hookMethod(classLoader, MIUI_PRIVACY_CONTROLLER, "setStatus",
-                chain -> {
-                    if (!(chain.getArg(2) instanceof Bundle))
-                        return chain.proceed();
-                    Bundle bundle = (Bundle) chain.getArg(2);
-                    int[] dotTypes = bundle.getIntArray("key_prompt_type");
-                    if (dotTypes == null || dotTypes.length == 0)
-                        return chain.proceed();
-                    boolean[] hide = {hideCamera, hideMic, hideLocation, hideMedia};
-                    for (int i = 0; i < Math.min(dotTypes.length, hide.length); i++)
-                        if (hide[i])
-                            dotTypes[i] = 0;
-                    bundle.putIntArray("key_prompt_type", dotTypes);
-                    for (int type : dotTypes)
-                        if (type != 0)
-                            return chain.proceed();
-                    return null;
-                },
+                this::handleMiuiStatus,
                 int.class, String.class, Bundle.class);
+
+        // Android 14 may update this cache before the types half arrives.
+        hookMethod(classLoader,
+                "com.android.systemui.statusbar.privacy.MiuiPrivacyFlaresDotController",
+                "updateLastMiuiPromptInfo", chain -> chain.getArg(1) == null
+                        ? chain.proceed(new Object[]{chain.getArg(0), new int[4]}) : chain.proceed(),
+                RemoteViews.class, int[].class);
 
         // AOSP based SystemUI: kill indicators at the config level. These read the
         // privacy DeviceConfig flags and seed AppOpsPrivacyItemMonitor, which then
@@ -132,6 +135,59 @@ public class Hook extends XposedModule {
                     Object result = chain.proceed();
                     return result instanceof List ? filterPrivacyList((List<?>) result) : result;
                 });
+    }
+
+    private Object handleMiuiStatus(XposedInterface.Chain chain) throws Throwable {
+        String action = (String) chain.getArg(1);
+        if (!UPDATE_PROMPT.equals(action) && !UPDATE_TYPES.equals(action))
+            return chain.proceed();
+        int status = (Integer) chain.getArg(0);
+        Object controller = chain.getThisObject();
+        synchronized (promptStates) {
+            if (status == 0) {
+                promptStates.remove(controller);
+                return chain.proceed();
+            }
+            if (!(chain.getArg(2) instanceof Bundle))
+                return chain.proceed();
+            boolean[] hide = {hideCamera, hideMic, hideLocation, hideMedia};
+            if (!(hide[0] || hide[1] || hide[2] || hide[3])) {
+                promptStates.remove(controller);
+                return chain.proceed();
+            }
+            Bundle bundle = (Bundle) chain.getArg(2);
+            boolean viewUpdate = UPDATE_PROMPT.equals(action);
+            if (viewUpdate) {
+                int priority = bundle.getInt("key_status_bar_priority", -1);
+                if (priority < 0 || priority > 3
+                        || !(bundle.getParcelable("key_status_bar_mini_state") instanceof RemoteViews)
+                        || !(bundle.getParcelable("key_status_bar_home_state") instanceof RemoteViews))
+                    return chain.proceed();
+            }
+            int[] types = bundle.getIntArray("key_prompt_type");
+            if (!viewUpdate && types == null)
+                return chain.proceed();
+            Bundle copy = new Bundle(bundle);
+            if (types != null)
+                copy.putIntArray("key_prompt_type", filterPromptTypes(types, hide));
+            MiuiPromptState<Bundle> state = promptStates.get(controller);
+            if (state == null) {
+                state = new MiuiPromptState<>(false);
+                promptStates.put(controller, state);
+            }
+            // Cache raw types; API 102 preferences can change without a restart.
+            state.setHiddenTypes(hide);
+            boolean hidden = viewUpdate ? state.onViews(status, copy, types) : state.onTypes(types);
+            if (hidden)
+                return chain.proceed(new Object[]{0, action, copy});
+            if (!viewUpdate) {
+                Bundle views = state.takeViewsToRestore();
+                if (views != null)
+                    getInvoker((Method) chain.getExecutable()).setType(XposedInterface.Invoker.Type.ORIGIN)
+                            .invoke(controller, state.getViewStatus(), UPDATE_PROMPT, new Bundle(views));
+            }
+            return chain.proceed(new Object[]{status, action, copy});
+        }
     }
 
     /**
