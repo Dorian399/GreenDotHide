@@ -4,6 +4,9 @@ import android.content.ComponentName;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
@@ -20,19 +23,26 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity {
+import io.github.libxposed.service.XposedService;
 
-    private boolean isModuleEnabled(){
-        return false;
-    }
+public class MainActivity extends AppCompatActivity implements ModuleApplication.Listener {
 
-    private void restartSystemUI(){
-        try {
-            Runtime.getRuntime().exec(new String[]{"su", "-c", "killall com.android.systemui"});
-        } catch (IOException e) {
-            Toast.makeText(this,R.string.restart_systemui_fail,Toast.LENGTH_LONG).show();
-        }
-    }
+    private static final String TAG = "GreenDotHide";
+    private static final String SYSTEM_UI = "com.android.systemui";
+    private static final String LOCAL_PREFS = "prefs_local";
+    private static final long SERVICE_TIMEOUT_MS = 8000L;
+
+    private final Handler handler = new Handler(Looper.getMainLooper());
+
+    private ModuleStatusView moduleStatus;
+    private List<SwitchMaterial> indicatorSwitches;
+    private SwitchMaterial hideHomescreenSwitch;
+    private SharedPreferences remotePrefs;
+
+    private final Runnable serviceTimeout = () -> {
+        if (remotePrefs == null)
+            showStatus(ModuleStatusView.Status.STATUS_INACTIVE);
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,90 +55,148 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-        ModuleStatusView moduleStatus = findViewById(R.id.moduleStatus);
+        moduleStatus = findViewById(R.id.moduleStatus);
+        indicatorSwitches = new ArrayList<>();
+        indicatorSwitches.add(findViewById(R.id.disable_location_indicator));
+        indicatorSwitches.add(findViewById(R.id.disable_microphone_indicator));
+        indicatorSwitches.add(findViewById(R.id.disable_camera_indicator));
+        indicatorSwitches.add(findViewById(R.id.disable_media_projection_indicator));
+        hideHomescreenSwitch = findViewById(R.id.hide_homescreen_icon);
 
-        if(isModuleEnabled()) {
-            moduleStatus.setStatus(ModuleStatusView.Status.STATUS_ACTIVE);
-        }else{
-            moduleStatus.setStatus(ModuleStatusView.Status.STATUS_INACTIVE);
-        }
+        showStatus(ModuleStatusView.Status.STATUS_LOADING);
+        setIndicatorSwitchesEnabled(false);
 
-        List<SwitchMaterial> mainSwitches = new ArrayList<>();
-        mainSwitches.add(findViewById(R.id.disable_location_indicator));
-        mainSwitches.add(findViewById(R.id.disable_microphone_indicator));
-        mainSwitches.add(findViewById(R.id.disable_camera_indicator));
-        mainSwitches.add(findViewById(R.id.disable_media_projection_indicator));
-        mainSwitches.add(findViewById(R.id.hide_homescreen_icon));
-
-        SharedPreferences sharedPrefs;
-
-        try {
-            sharedPrefs = getSharedPreferences("prefs",MODE_WORLD_READABLE);
-            if(!isModuleEnabled()){
-                mainSwitches.forEach((switchMaterial -> {
-                    switchMaterial.setEnabled(false);
-                }));
-            }
-        }catch(Exception e){
-            // When using private mode the settings become irrelevant.
-            sharedPrefs = getSharedPreferences("prefs",MODE_PRIVATE);
-            mainSwitches.forEach((switchMaterial -> {
-                switchMaterial.setEnabled(false);
-            }));
-        }
-
-        loadSwitchesSettings(sharedPrefs,mainSwitches);
-        addSwitchListeners(sharedPrefs, mainSwitches);
+        // The icon toggle is local to this app, so it works even without the framework.
+        SharedPreferences localPrefs = getSharedPreferences(LOCAL_PREFS, MODE_PRIVATE);
+        hideHomescreenSwitch.setChecked(localPrefs.getBoolean("hide_homescreen_icon", false));
+        hideHomescreenSwitch.setOnCheckedChangeListener((switchView, isChecked) -> {
+            localPrefs.edit().putBoolean("hide_homescreen_icon", isChecked).apply();
+            setLauncherIconEnabled(!isChecked);
+        });
 
         Button restartSystemUIButton = findViewById(R.id.restart_systemui);
-        restartSystemUIButton.setOnClickListener((View v) -> {
-            restartSystemUI();
-        });
+        restartSystemUIButton.setOnClickListener((View v) -> restartSystemUI());
+
+        ModuleApplication.addListener(this);
+        handler.postDelayed(serviceTimeout, SERVICE_TIMEOUT_MS);
     }
 
-    private void loadSwitchesSettings(SharedPreferences sharedPrefs,List<SwitchMaterial> switches){
-        switches.forEach((switchMaterial -> {
-            String idString = getResources().getResourceEntryName(switchMaterial.getId());
-            String tag = String.valueOf(switchMaterial.getTag());
-            boolean defBool = tag.equals("no_logic");
-            switchMaterial.setChecked(sharedPrefs.getBoolean(idString,defBool));
-        }));
+    @Override
+    protected void onDestroy() {
+        handler.removeCallbacks(serviceTimeout);
+        ModuleApplication.removeListener(this);
+        super.onDestroy();
     }
 
-    private void addSwitchListeners(SharedPreferences sharedPrefs, List<SwitchMaterial> switches){
-        SharedPreferences.Editor editor = sharedPrefs.edit();
+    @Override
+    public void onXposedService(XposedService service) {
+        runOnUiThread(() -> bindService(service));
+    }
 
-        switches.forEach((switchMaterial -> {
-            String tag = String.valueOf(switchMaterial.getTag());
-            boolean shouldSkip = !tag.equals("no_logic");
-            if( !shouldSkip ) {
-                switchMaterial.setOnCheckedChangeListener(((switchView, isChecked) -> {
-                    String idString = getResources().getResourceEntryName(switchView.getId());
-                    editor.putBoolean(idString,isChecked);
-                    editor.apply();
-                }));
+    /**
+     * The framework only sends its service when the module is enabled, which replaces the old
+     * self-hook that used to flip {@code isModuleEnabled()} inside this very app.
+     */
+    private void bindService(XposedService service) {
+        if (isFinishing() || isDestroyed())
+            return;
+        handler.removeCallbacks(serviceTimeout);
+        remotePrefs = null;
+
+        if (service == null) {
+            showStatus(ModuleStatusView.Status.STATUS_INACTIVE);
+            setIndicatorSwitchesEnabled(false);
+            return;
+        }
+
+        try {
+            if ((service.getFrameworkProperties() & XposedService.PROP_CAP_REMOTE) == 0) {
+                Log.w(TAG, "Framework lacks remote preference support");
+                showStatus(ModuleStatusView.Status.STATUS_INACTIVE);
+                setIndicatorSwitchesEnabled(false);
+                return;
             }
-        }));
 
-        SwitchMaterial hideHomescreenSwitch = findViewById(R.id.hide_homescreen_icon);
-        hideHomescreenSwitch.setOnCheckedChangeListener(((switchView, isChecked) -> {
-            String idString = getResources().getResourceEntryName(switchView.getId());
-            editor.putBoolean(idString,isChecked);
+            remotePrefs = service.getRemotePreferences(Prefs.GROUP);
+        } catch (Throwable t) {
+            Log.w(TAG, "Cannot open remote preferences", t);
+            remotePrefs = null;
+            showStatus(ModuleStatusView.Status.STATUS_INACTIVE);
+            setIndicatorSwitchesEnabled(false);
+            return;
+        }
+
+        boolean inScope;
+        try {
+            inScope = service.getScope().contains(SYSTEM_UI);
+        } catch (Throwable t) {
+            Log.w(TAG, "Cannot read the module scope", t);
+            inScope = false;
+        }
+        showStatus(inScope
+                ? ModuleStatusView.Status.STATUS_ACTIVE
+                : ModuleStatusView.Status.STATUS_NO_SCOPE);
+
+        setIndicatorSwitchesEnabled(true);
+        loadIndicatorSwitches(remotePrefs);
+        addIndicatorSwitchListeners(remotePrefs);
+    }
+
+    /**
+     * Mirrors the switches into the framework store. Keys are derived from the layout ids, which
+     * are the same names the hook reads, and missing keys default to enabled. The write is skipped
+     * when nothing differs so reopening the Activity costs no cross-process round trip.
+     */
+    private void loadIndicatorSwitches(SharedPreferences prefs) {
+        SharedPreferences.Editor editor = prefs.edit();
+        boolean seeding = false;
+        for (SwitchMaterial toggle : indicatorSwitches) {
+            String key = getResources().getResourceEntryName(toggle.getId());
+            boolean value = prefs.getBoolean(key, true);
+            toggle.setChecked(value);
+            // Seed the framework store on first run so the hook never reads a bare default.
+            if (!prefs.contains(key)) {
+                editor.putBoolean(key, value);
+                seeding = true;
+            }
+        }
+        if (seeding)
             editor.apply();
+    }
 
-            PackageManager pkgMan = getPackageManager();
-            if(isChecked){
-                pkgMan.setComponentEnabledSetting(
-                        new ComponentName(this, LauncherIcon.class),
-                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                        PackageManager.DONT_KILL_APP
-                );
-           }else{
-                pkgMan.setComponentEnabledSetting(
-                        new ComponentName(this, LauncherIcon.class),
-                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                        PackageManager.DONT_KILL_APP
-                );            }
-        }));
+    private void addIndicatorSwitchListeners(SharedPreferences prefs) {
+        SharedPreferences.Editor editor = prefs.edit();
+        for (SwitchMaterial toggle : indicatorSwitches) {
+            toggle.setOnCheckedChangeListener((switchView, isChecked) -> {
+                String key = getResources().getResourceEntryName(switchView.getId());
+                editor.putBoolean(key, isChecked).apply();
+            });
+        }
+    }
+
+    private void showStatus(int status) {
+        moduleStatus.setStatus(status);
+    }
+
+    private void setIndicatorSwitchesEnabled(boolean enabled) {
+        for (SwitchMaterial toggle : indicatorSwitches)
+            toggle.setEnabled(enabled);
+    }
+
+    private void setLauncherIconEnabled(boolean enabled) {
+        getPackageManager().setComponentEnabledSetting(
+                new ComponentName(this, LauncherIcon.class),
+                enabled ? PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                        : PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                PackageManager.DONT_KILL_APP
+        );
+    }
+
+    private void restartSystemUI() {
+        try {
+            Runtime.getRuntime().exec(new String[]{"su", "-c", "killall com.android.systemui"});
+        } catch (IOException e) {
+            Toast.makeText(this, R.string.restart_systemui_fail, Toast.LENGTH_LONG).show();
+        }
     }
 }

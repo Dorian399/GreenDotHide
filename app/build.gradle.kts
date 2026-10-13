@@ -4,11 +4,12 @@ plugins {
 
 android {
     namespace = "com.dorian15.greendothide"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.dorian15.greendothide"
-        minSdk = 24
+        // libxposed api/service 102 declare minSdkVersion 26
+        minSdk = 26
         targetSdk = 35
         versionCode = 6
         versionName = "1.5.1"
@@ -26,8 +27,9 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        // io.github.libxposed:service is compiled with records / sealed types / switch expressions
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 }
 
@@ -37,8 +39,11 @@ dependencies {
     implementation(libs.material)
     implementation(libs.cardview)
     testImplementation(libs.junit)
-    testImplementation(fileTree("libs") { include("api-82.jar") })
+    testImplementation(libs.xposed.api)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)
-    compileOnly(fileTree("libs") { include("api-82.jar") })
+    // Provided by the Xposed framework at runtime; only the hooked process may touch it.
+    compileOnly(libs.xposed.api)
+    // Bundled: XposedProvider lets the module app talk to the framework.
+    implementation(libs.xposed.service)
 }

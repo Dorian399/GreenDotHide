@@ -2,7 +2,8 @@ package com.dorian15.greendothide.xposed;
 
 /** Tracks the two halves of one MIUI controller's current privacy prompt. */
 final class MiuiPromptState<T> {
-    private final boolean allHidden;
+    private boolean allHidden;
+    private boolean[] hiddenTypes = new boolean[4];
     private int[] types;
     private T views;
     private int viewStatus;
@@ -11,6 +12,11 @@ final class MiuiPromptState<T> {
 
     MiuiPromptState(boolean allHidden) {
         this.allHidden = allHidden;
+    }
+
+    void setHiddenTypes(boolean[] hidden) {
+        hiddenTypes = hidden.clone();
+        allHidden = hidden[0] && hidden[1] && hidden[2] && hidden[3];
     }
 
     boolean onViews(int status, T newViews, int[] newTypes) {
@@ -65,8 +71,8 @@ final class MiuiPromptState<T> {
     private boolean shouldHide() {
         if (types == null)
             return allHidden;
-        for (int type : types)
-            if (type != 0)
+        for (int i = 0; i < types.length; i++)
+            if (types[i] != 0 && !(i < hiddenTypes.length && hiddenTypes[i]))
                 return false;
         return true;
     }

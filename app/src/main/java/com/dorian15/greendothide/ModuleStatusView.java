@@ -13,6 +13,7 @@ public class ModuleStatusView extends LinearLayout {
         public static final int STATUS_ACTIVE = 0;
         public static final int STATUS_INACTIVE = 1;
         public static final int STATUS_LOADING = 2;
+        public static final int STATUS_NO_SCOPE = 3;
     }
 
     private ImageView icon;
@@ -41,6 +42,12 @@ public class ModuleStatusView extends LinearLayout {
 
             case Status.STATUS_LOADING:
                 this.statusText.setText(R.string.module_status_loading);
+                this.icon.setImageResource(R.drawable.baseline_info);
+                setBackgroundResource(R.drawable.module_status_loading);
+                break;
+
+            case Status.STATUS_NO_SCOPE:
+                this.statusText.setText(R.string.module_status_no_scope);
                 this.icon.setImageResource(R.drawable.baseline_info);
                 setBackgroundResource(R.drawable.module_status_loading);
                 break;

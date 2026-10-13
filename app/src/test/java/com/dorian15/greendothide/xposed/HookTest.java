@@ -8,6 +8,30 @@ public class HookTest {
     private static final boolean[] ALL = {true, true, true, true};
 
     @Test
+    public void liveSettingsReevaluateCachedRawTypes() {
+        MiuiPromptState<String> state = new MiuiPromptState<>(false);
+        state.setHiddenTypes(ALL);
+        assertTrue(state.onTypes(new int[]{1, 0, 0, 0}));
+        assertTrue(state.onViews(1, "hidden-camera", null));
+        state.setHiddenTypes(new boolean[]{false, true, true, true});
+        assertFalse(state.onViews(1, "visible-camera", null));
+        state.setHiddenTypes(ALL);
+        assertTrue(state.onViews(1, "hidden-again", null));
+    }
+
+    @Test
+    public void liveSettingsDoNotHideUnknownTypesOrAliasFlags() {
+        MiuiPromptState<String> state = new MiuiPromptState<>(false);
+        boolean[] hidden = ALL.clone();
+        state.setHiddenTypes(hidden);
+        hidden[0] = false;
+        assertTrue(state.onTypes(new int[]{1, 0, 0, 0}));
+        assertFalse(state.onTypes(new int[]{0, 0, 0, 0, 1}));
+        state.setHiddenTypes(new boolean[4]);
+        assertFalse(state.onViews(1, "unknown", null));
+    }
+
+    @Test
     public void selectiveSettingsKeepVisibleTypesAndDoNotMutateSender() {
         int[] input = {1, 1, 1, 1};
         int[] filtered = Hook.filterPromptTypes(input, new boolean[]{true, false, true, false});

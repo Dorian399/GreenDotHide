@@ -1,8 +1,10 @@
 <resources>
     <string name="app_name">GreenDotHide</string>
-    <string name="module_status_loading">Loading module status…</string>
+    <string name="module_description">Hides the green dot indicating location, camera or microphone use.</string>
+    <string name="module_status_loading">Loading module…</string>
     <string name="module_status_active">Module properly loaded.</string>
     <string name="module_status_inactive">Module failed to load.</string>
+    <string name="module_status_no_scope">Enable the module for SystemUI in your Xposed manager.</string>
     <string name="disable_location_indicator">Disable location indicator.</string>
     <string name="disable_microphone_indicator">Disable microphone indicator.</string>
     <string name="disable_camera_indicator">Disable camera indicator.</string>
